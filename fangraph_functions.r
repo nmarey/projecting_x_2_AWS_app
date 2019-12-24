@@ -49,11 +49,33 @@ f_dash <- function(player_id){
   b_table_df <- b_table_df[!grepl("Total", b_table_df$Season), ]
   b_table_df$Season <- as.numeric(b_table_df$Season)
   
-  b_table_df <- b_table_df[!duplicated(b_table_df[c('Season', 'Team')]), ]
+  b_table_df <- b_table_df[!duplicated(b_table_df[c('Season', 'Team')]), ] # removes postseason numbers
+  b_table_df[,c('G', "PA", "HR", "R", "RBI", "SB", "AVG")] <- NULL
   rownames(b_table_df) <- NULL
   
   return(b_table_df)
 }
+
+f_standard <- function(player_id){
+  url <- paste("https://www.fangraphs.com/statss.aspx?playerid=", player_id, sep = "")
+  
+  b_table_list <- url %>%
+    xml2::read_html() %>%
+    html_nodes(xpath='//*[@id="SeasonStats1_dgSeason1_ctl00"]') %>%
+    html_table()
+  
+  b_table_df <- b_table_list[[1]]
+  
+  b_table_df <- b_table_df[!grepl("Postseason", b_table_df$Season), ]
+  b_table_df <- b_table_df[!grepl("Total", b_table_df$Season), ]
+  b_table_df$Season <- as.numeric(b_table_df$Season)
+  
+  b_table_df <- b_table_df[!duplicated(b_table_df[c('Season', 'Team')]), ] # removes postseason numbers
+  rownames(b_table_df) <- NULL
+  
+  return(b_table_df)
+}
+
 
 f_adv <- function(player_id){
   
@@ -141,23 +163,25 @@ f_more_bat_ball <- function(player_id){
   return(b_table_df)
 }
 
-f_data_merge <- function(df1, df2, df3, df4){
+f_data_merge <- function(df1, df2, df3, df4, df5){
   
   merge_df1 <- merge(df1, df2, by = c('Season', 'Team'), all.x = TRUE)
   merge_df2 <- merge(merge_df1, df3, by = c('Season', 'Team'), all.x = TRUE)
   merge_df3 <- merge(merge_df2, df4, by = c('Season', 'Team'), all.x = TRUE)
+  merge_df4 <- merge(merge_df3, df5, by = c('Season', 'Team'), all.x = TRUE)
   
-  return(merge_df3)
+  return(merge_df4)
 }
 
 fangraphs_get_data <- function(player_id){
   
+  standard_df <- f_standard(player_id)
   dash_df <- f_dash(player_id)
   adv_df <- f_adv(player_id)
   bat_ball_df <- f_bat_ball(player_id)
   more_bat_ball_df <- f_more_bat_ball(player_id)
   
-  fangraph_df <- f_data_merge(dash_df, adv_df, bat_ball_df, more_bat_ball_df)
+  fangraph_df <- f_data_merge(standard_df, dash_df, adv_df, bat_ball_df, more_bat_ball_df)
   
   return(fangraph_df)
 }
